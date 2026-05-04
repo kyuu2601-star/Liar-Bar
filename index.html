@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liar's Bar Companion V8</title>
+    <title>Liar's Bar Companion V9 - NearWin Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Pirata+One&display=swap" rel="stylesheet">
     <style>
@@ -24,7 +24,7 @@
         #interactionLock {
             position: fixed;
             inset: 0;
-            z-index: 9998; /* Thấp hơn modal */
+            z-index: 9998;
             display: none;
             background: rgba(0,0,0,0);
         }
@@ -88,6 +88,7 @@
             filter: drop-shadow(0 0 10px red);
         }
 
+        /* Ổ xoay súng */
         .cylinder {
             position: relative;
             width: 270px;
@@ -97,6 +98,13 @@
             border: 6px solid #222;
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: inset 0 0 40px #000;
+        }
+
+        /* Hiệu ứng Near-win cho ổ xoay */
+        .cylinder.near-win {
+            box-shadow: 0 0 30px #ff0000, inset 0 0 50px #ff0000;
+            border-color: #ff0000;
+            transition: transform 1.5s cubic-bezier(0.45, 0.05, 0.55, 0.95), box-shadow 0.5s;
         }
 
         .chamber {
@@ -122,6 +130,7 @@
             display: none;
         }
 
+        /* Animation Rung mạnh & Flash */
         .flash-bang { animation: flashEffect 0.5s ease-out; }
         @keyframes flashEffect {
             0% { background-color: rgba(255, 0, 0, 1); }
@@ -135,7 +144,14 @@
             100% { transform: translate(3px, -3px); }
         }
 
-        /* Popup phải có z-index cao nhất */
+        /* Rung kịch tính lúc Near-win */
+        .shake-intense { animation: shakeIntenseEffect 0.05s infinite; }
+        @keyframes shakeIntenseEffect {
+            0% { transform: translate(5px, 5px); }
+            50% { transform: translate(-5px, -5px); }
+            100% { transform: translate(5px, -5px); }
+        }
+
         .modal {
             position: fixed;
             inset: 0;
@@ -178,9 +194,9 @@
     <div id="interactionLock"></div>
     <div id="flashOverlay" class="fixed inset-0 pointer-events-none z-[60]"></div>
 
+    <!-- MÀN HÌNH 1 -->
     <div id="screen1" class="flex flex-col items-center gap-12 w-full max-w-sm">
         <h1 class="western-title text-6xl text-yellow-600">LIAR'S BAR</h1>
-        
         <div class="relative">
             <div class="arrow-bottom"></div>
             <div class="wheel-box">
@@ -192,25 +208,23 @@
                 </div>
             </div>
         </div>
-
         <div id="spinResultText" class="h-10 text-3xl font-black text-yellow-500 western-title text-center"></div>
-
         <button id="btnSpin" class="btn-gold text-2xl uppercase italic">XOAY CHẤT</button>
     </div>
 
+    <!-- MÀN HÌNH 2 -->
     <div id="screen2" class="hidden flex flex-col items-center justify-between w-full max-w-sm h-[85vh]">
-        <h2 class="text-gray-500 western-title text-2xl mt-4">Russian Roulette</h2>
-
+        <h2 id="rouletteTitle" class="text-gray-500 western-title text-2xl mt-4">Russian Roulette</h2>
         <div class="relative flex flex-col items-center">
             <div class="absolute -top-6 w-1 h-12 bg-red-500 shadow-[0_0_15px_red] z-20"></div>
             <div id="cylinder" class="cylinder"></div>
             <div id="shootMsg" class="mt-12 h-14 text-6xl western-title tracking-tighter text-center"></div>
         </div>
-
         <button id="btnShoot" class="btn-shoot uppercase">BẮN</button>
         <div class="h-10"></div>
     </div>
 
+    <!-- POPUP -->
     <div id="modalLose" class="modal">
         <h2 class="text-8xl text-red-700 western-title mb-6">YOU LOSE</h2>
         <p class="text-gray-400 mb-12 text-center px-10">Số phận đã kết thúc lượt chơi của bạn.</p>
@@ -248,38 +262,30 @@
                 const y = 135 + 90 * Math.sin(rad) - 30;
                 chamber.style.left = `${x}px`;
                 chamber.style.top = `${y}px`;
-                
                 const b = document.createElement('div');
-                b.className = 'bullet';
-                b.id = `bullet-${i}`;
+                b.className = 'bullet'; b.id = `bullet-${i}`;
                 chamber.appendChild(b);
                 cylinder.appendChild(chamber);
             }
         }
         renderCylinder();
 
+        // Xoay chất
         document.getElementById('btnSpin').addEventListener('click', () => {
             lock.style.display = 'block';
             document.getElementById('spinResultText').innerText = "";
-            
             const randomRotation = 1800 + Math.floor(Math.random() * 360);
             wheel.style.transform = `rotate(${randomRotation - 45}deg)`;
-
             let tickInt = setInterval(() => playSound(200, 'sine', 0.1, 0.05), 150);
 
             setTimeout(() => {
                 clearInterval(tickInt);
-                // FIX 1: Tính đúng segment tại điểm 6 giờ (mũi tên đỏ phía dưới)
-                // Wheel bắt đầu tại -45deg, mũi tên ở 6 giờ = góc 270deg của vòng tròn thực
-                // Góc local tại điểm mũi tên = (270 - (randomRotation - 45)) mod 360
                 const localAngle = ((270 - (randomRotation - 45)) % 360 + 360) % 360;
                 const winIdx = Math.floor(localAngle / 90) % 4;
-                
                 document.getElementById('spinResultText').innerText = `LƯỢT NÀY: ${suits[winIdx]}`;
                 if(navigator.vibrate) navigator.vibrate(50);
 
                 setTimeout(() => {
-                    // FIX 2: Xóa shootMsg khi chuyển sang màn hình súng
                     document.getElementById('shootMsg').innerText = "";
                     document.getElementById('screen1').classList.add('hidden');
                     document.getElementById('screen2').classList.remove('hidden');
@@ -288,16 +294,37 @@
             }, 4000);
         });
 
+        // Bắn súng
         document.getElementById('btnShoot').addEventListener('click', () => {
             if (isDead) return;
             lock.style.display = 'block';
             currentSteps++;
+
+            const isNearWinShot = (currentSteps === 5);
+            const msg = document.getElementById('shootMsg');
+            const title = document.getElementById('rouletteTitle');
+            
+            // Xử lý VFX Near-win
+            if (isNearWinShot) {
+                cylinder.classList.add('near-win');
+                document.body.classList.add('shake-intense');
+                title.innerText = "SỐ PHẬN QUYẾT ĐỊNH...";
+                title.classList.add('text-red-500');
+                // Nhịp tim sfx
+                let heartBeat = setInterval(() => playSound(60, 'sine', 0.2, 0.2), 300);
+                setTimeout(() => clearInterval(heartBeat), 1400);
+            }
+
+            // Xoay ổ đạn
             cylinder.style.transform = `rotate(${currentSteps * 60}deg)`;
 
-            const currentTopIdx = (6 - (currentSteps % 6)) % 6;
+            // Đợi animation xoay kết thúc (Near-win lâu hơn)
+            const waitTime = isNearWinShot ? 1550 : 450;
 
             setTimeout(() => {
-                const msg = document.getElementById('shootMsg');
+                document.body.classList.remove('shake-intense');
+                const currentTopIdx = (6 - (currentSteps % 6)) % 6;
+
                 if (currentTopIdx === bulletPos) {
                     isDead = true;
                     playSound(60, 'sawtooth', 0.6, 0.4);
@@ -305,24 +332,35 @@
                     msg.style.color = "#ff0000";
                     document.getElementById('flashOverlay').classList.add('flash-bang');
                     document.body.classList.add('shake-body');
+                    if (isNearWinShot) {
+                        // Rung mạnh hơn khi BANG ở lượt 5
+                        if(navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 500]);
+                    } else {
+                        if(navigator.vibrate) navigator.vibrate([100, 50, 400]);
+                    }
                     document.getElementById(`bullet-${bulletPos}`).style.display = 'block';
-                    if(navigator.vibrate) navigator.vibrate([100, 50, 400]);
 
                     setTimeout(() => {
                         document.getElementById('modalLose').style.display = 'flex';
                         document.body.classList.remove('shake-body');
-                        // QUAN TRỌNG: Mở khóa tương tác để bấm được Restart
                         lock.style.display = 'none';
                     }, 1000);
                 } else {
+                    // Sống sót
                     playSound(100, 'square', 0.1, 0.2);
-                    msg.innerText = "CLICK";
-                    msg.style.color = "#666";
-                    if(navigator.vibrate) navigator.vibrate(20);
+                    msg.innerText = isNearWinShot ? "LUCKY" : "CLICK";
+                    msg.style.color = isNearWinShot ? "#d4af37" : "#666";
+                    if(navigator.vibrate) navigator.vibrate(30);
 
                     setTimeout(() => {
                         document.getElementById('screen2').classList.add('hidden');
                         document.getElementById('screen1').classList.remove('hidden');
+                        
+                        // Reset UI về trạng thái thường
+                        cylinder.classList.remove('near-win');
+                        title.innerText = "Russian Roulette";
+                        title.classList.remove('text-red-500');
+                        
                         wheel.style.transition = 'none';
                         wheel.style.transform = 'rotate(-45deg)';
                         document.getElementById('spinResultText').innerText = "";
@@ -330,23 +368,27 @@
                             wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0, 0.1, 1)';
                             lock.style.display = 'none';
                         }, 50);
-                    }, 1000);
+                    }, 1500);
                 }
-            }, 450);
+            }, waitTime);
         });
 
+        // Restart
         document.getElementById('btnRestart').addEventListener('click', () => {
             isDead = false;
+            currentSteps = 0;
+            bulletPos = Math.floor(Math.random() * 6);
+            
             document.getElementById('modalLose').style.display = 'none';
             document.getElementById('flashOverlay').classList.remove('flash-bang');
             document.getElementById('screen2').classList.add('hidden');
             document.getElementById('screen1').classList.remove('hidden');
+            document.getElementById('rouletteTitle').innerText = "Russian Roulette";
+            document.getElementById('rouletteTitle').classList.remove('text-red-500');
+            cylinder.classList.remove('near-win');
             
-            bulletPos = Math.floor(Math.random() * 6);
-            currentSteps = 0;
             cylinder.style.transform = 'rotate(0deg)';
             renderCylinder();
-
             wheel.style.transition = 'none';
             wheel.style.transform = 'rotate(-45deg)';
             document.getElementById('spinResultText').innerText = "";
