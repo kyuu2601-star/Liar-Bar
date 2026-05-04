@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liar's Bar Companion V8</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Pirata+One&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #050505;
+            color: #e0e0e0;
+            font-family: 'Cinzel', serif;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .western-title {
+            font-family: 'Pirata One', cursive;
+            letter-spacing: 2px;
+        }
+
+        /* Khóa tương tác toàn màn hình */
+        #interactionLock {
+            position: fixed;
+            inset: 0;
+            z-index: 9998; /* Thấp hơn modal */
+            display: none;
+            background: rgba(0,0,0,0);
+        }
+
+        .wheel-box {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            border: 12px solid #1a1a1a;
+            border-radius: 50%;
+            box-shadow: 0 0 50px rgba(0,0,0,1), inset 0 0 20px #000;
+        }
+
+        #wheel {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            transition: transform 4s cubic-bezier(0.15, 0, 0.1, 1);
+            overflow: hidden;
+            transform: rotate(-45deg); 
+        }
+
+        .seg {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            transform-origin: 100% 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .seg-a { background: #8b0000; transform: rotate(0deg); }
+        .seg-j { background: #1a3a6d; transform: rotate(90deg); }
+        .seg-q { background: #4b0082; transform: rotate(180deg); }
+        .seg-k { background: #d4af37; transform: rotate(270deg); }
+
+        .seg span {
+            position: absolute;
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: white;
+            transform: rotate(-45deg); 
+            right: 20%;
+            top: 20%;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.8);
+        }
+
+        .arrow-bottom {
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%) rotate(180deg);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 45px solid #ff0000;
+            z-index: 50;
+            filter: drop-shadow(0 0 10px red);
+        }
+
+        .cylinder {
+            position: relative;
+            width: 270px;
+            height: 270px;
+            border-radius: 50%;
+            background: #111;
+            border: 6px solid #222;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: inset 0 0 40px #000;
+        }
+
+        .chamber {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: #000;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 20px #000;
+        }
+
+        .bullet {
+            width: 45px;
+            height: 45px;
+            background: radial-gradient(circle, #ffe17a 0%, #d4af37 60%, #8b6b10 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 20px #d4af37;
+            display: none;
+        }
+
+        .flash-bang { animation: flashEffect 0.5s ease-out; }
+        @keyframes flashEffect {
+            0% { background-color: rgba(255, 0, 0, 1); }
+            100% { background-color: transparent; }
+        }
+
+        .shake-body { animation: shakeEffect 0.1s infinite; }
+        @keyframes shakeEffect {
+            0% { transform: translate(3px, 3px); }
+            50% { transform: translate(-3px, -3px); }
+            100% { transform: translate(3px, -3px); }
+        }
+
+        /* Popup phải có z-index cao nhất */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.98);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #d4af37, #8b6b10);
+            color: black;
+            font-weight: 900;
+            padding: 1.2rem 3.5rem;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+            border: 2px solid #422006;
+        }
+
+        .btn-shoot {
+            background: linear-gradient(135deg, #ff0000, #8b0000);
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: white;
+            border: 5px solid #300;
+            box-shadow: 0 10px 40px rgba(255,0,0,0.4);
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div id="interactionLock"></div>
+    <div id="flashOverlay" class="fixed inset-0 pointer-events-none z-[60]"></div>
+
+    <div id="screen1" class="flex flex-col items-center gap-12 w-full max-w-sm">
+        <h1 class="western-title text-6xl text-yellow-600">LIAR'S BAR</h1>
+        
+        <div class="relative">
+            <div class="arrow-bottom"></div>
+            <div class="wheel-box">
+                <div id="wheel">
+                    <div class="seg seg-a"><span>A</span></div>
+                    <div class="seg seg-j"><span>J</span></div>
+                    <div class="seg seg-q"><span>Q</span></div>
+                    <div class="seg seg-k"><span>K</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="spinResultText" class="h-10 text-3xl font-black text-yellow-500 western-title text-center"></div>
+
+        <button id="btnSpin" class="btn-gold text-2xl uppercase italic">XOAY CHẤT</button>
+    </div>
+
+    <div id="screen2" class="hidden flex flex-col items-center justify-between w-full max-w-sm h-[85vh]">
+        <h2 class="text-gray-500 western-title text-2xl mt-4">Russian Roulette</h2>
+
+        <div class="relative flex flex-col items-center">
+            <div class="absolute -top-6 w-1 h-12 bg-red-500 shadow-[0_0_15px_red] z-20"></div>
+            <div id="cylinder" class="cylinder"></div>
+            <div id="shootMsg" class="mt-12 h-14 text-6xl western-title tracking-tighter text-center"></div>
+        </div>
+
+        <button id="btnShoot" class="btn-shoot uppercase">BẮN</button>
+        <div class="h-10"></div>
+    </div>
+
+    <div id="modalLose" class="modal">
+        <h2 class="text-8xl text-red-700 western-title mb-6">YOU LOSE</h2>
+        <p class="text-gray-400 mb-12 text-center px-10">Số phận đã kết thúc lượt chơi của bạn.</p>
+        <button id="btnRestart" class="btn-gold text-2xl uppercase">Restart</button>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(freq, type, dur, vol) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + dur);
+        }
+
+        const suits = ['A', 'J', 'Q', 'K'];
+        let bulletPos = Math.floor(Math.random() * 6);
+        let currentSteps = 0;
+        let isDead = false;
+
+        const lock = document.getElementById('interactionLock');
+        const wheel = document.getElementById('wheel');
+        const cylinder = document.getElementById('cylinder');
+
+        function renderCylinder() {
+            cylinder.innerHTML = '';
+            for(let i=0; i<6; i++) {
+                const chamber = document.createElement('div');
+                chamber.className = 'chamber';
+                const rad = (i * 60 - 90) * (Math.PI / 180);
+                const x = 135 + 90 * Math.cos(rad) - 30;
+                const y = 135 + 90 * Math.sin(rad) - 30;
+                chamber.style.left = `${x}px`;
+                chamber.style.top = `${y}px`;
+                
+                const b = document.createElement('div');
+                b.className = 'bullet';
+                b.id = `bullet-${i}`;
+                chamber.appendChild(b);
+                cylinder.appendChild(chamber);
+            }
+        }
+        renderCylinder();
+
+        document.getElementById('btnSpin').addEventListener('click', () => {
+            lock.style.display = 'block';
+            document.getElementById('spinResultText').innerText = "";
+            
+            const randomRotation = 1800 + Math.floor(Math.random() * 360);
+            wheel.style.transform = `rotate(${randomRotation - 45}deg)`;
+
+            let tickInt = setInterval(() => playSound(200, 'sine', 0.1, 0.05), 150);
+
+            setTimeout(() => {
+                clearInterval(tickInt);
+                // FIX 1: Tính đúng segment tại điểm 6 giờ (mũi tên đỏ phía dưới)
+                // Wheel bắt đầu tại -45deg, mũi tên ở 6 giờ = góc 270deg của vòng tròn thực
+                // Góc local tại điểm mũi tên = (270 - (randomRotation - 45)) mod 360
+                const localAngle = ((270 - (randomRotation - 45)) % 360 + 360) % 360;
+                const winIdx = Math.floor(localAngle / 90) % 4;
+                
+                document.getElementById('spinResultText').innerText = `LƯỢT NÀY: ${suits[winIdx]}`;
+                if(navigator.vibrate) navigator.vibrate(50);
+
+                setTimeout(() => {
+                    // FIX 2: Xóa shootMsg khi chuyển sang màn hình súng
+                    document.getElementById('shootMsg').innerText = "";
+                    document.getElementById('screen1').classList.add('hidden');
+                    document.getElementById('screen2').classList.remove('hidden');
+                    lock.style.display = 'none';
+                }, 1500);
+            }, 4000);
+        });
+
+        document.getElementById('btnShoot').addEventListener('click', () => {
+            if (isDead) return;
+            lock.style.display = 'block';
+            currentSteps++;
+            cylinder.style.transform = `rotate(${currentSteps * 60}deg)`;
+
+            const currentTopIdx = (6 - (currentSteps % 6)) % 6;
+
+            setTimeout(() => {
+                const msg = document.getElementById('shootMsg');
+                if (currentTopIdx === bulletPos) {
+                    isDead = true;
+                    playSound(60, 'sawtooth', 0.6, 0.4);
+                    msg.innerText = "BANG!";
+                    msg.style.color = "#ff0000";
+                    document.getElementById('flashOverlay').classList.add('flash-bang');
+                    document.body.classList.add('shake-body');
+                    document.getElementById(`bullet-${bulletPos}`).style.display = 'block';
+                    if(navigator.vibrate) navigator.vibrate([100, 50, 400]);
+
+                    setTimeout(() => {
+                        document.getElementById('modalLose').style.display = 'flex';
+                        document.body.classList.remove('shake-body');
+                        // QUAN TRỌNG: Mở khóa tương tác để bấm được Restart
+                        lock.style.display = 'none';
+                    }, 1000);
+                } else {
+                    playSound(100, 'square', 0.1, 0.2);
+                    msg.innerText = "CLICK";
+                    msg.style.color = "#666";
+                    if(navigator.vibrate) navigator.vibrate(20);
+
+                    setTimeout(() => {
+                        document.getElementById('screen2').classList.add('hidden');
+                        document.getElementById('screen1').classList.remove('hidden');
+                        wheel.style.transition = 'none';
+                        wheel.style.transform = 'rotate(-45deg)';
+                        document.getElementById('spinResultText').innerText = "";
+                        setTimeout(() => {
+                            wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0, 0.1, 1)';
+                            lock.style.display = 'none';
+                        }, 50);
+                    }, 1000);
+                }
+            }, 450);
+        });
+
+        document.getElementById('btnRestart').addEventListener('click', () => {
+            isDead = false;
+            document.getElementById('modalLose').style.display = 'none';
+            document.getElementById('flashOverlay').classList.remove('flash-bang');
+            document.getElementById('screen2').classList.add('hidden');
+            document.getElementById('screen1').classList.remove('hidden');
+            
+            bulletPos = Math.floor(Math.random() * 6);
+            currentSteps = 0;
+            cylinder.style.transform = 'rotate(0deg)';
+            renderCylinder();
+
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(-45deg)';
+            document.getElementById('spinResultText').innerText = "";
+            setTimeout(() => {
+                wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0, 0.1, 1)';
+                lock.style.display = 'none';
+            }, 50);
+        });
+    </script>
+</body>
+</html>
